@@ -3,18 +3,192 @@
 
 ## Loading and preprocessing the data
 
+```{r echo = TRUE}
+library(ggplot2)
+# read data from "activity.csv"
+activityData <- read.csv("activity.csv", stringsAsFactors = FALSE)
 
+# clean NA values in steps of data
+cleanData <- activityData[!is.na(activityData[,1]),] 
+
+# split data by date
+splitData <- split(cleanData[,1], cleanData$date)
+
+# sum the steps
+sumData <- lapply(splitData, sum)
+
+# tranform to frame
+ssData <- data.frame(sumData)
+
+# get the sum of steps
+rData <- 0
+for (i in 1 : length(ssData)){
+    rData[i]<- ssData[i][,1][1]
+}
+
+# tranform to frame
+stepsData <- data.frame(rData)
+```
 
 ## What is mean total number of steps taken per day?
+1. Make a histogram of the total number of steps taken each day
+```{r echo = TRUE}
+# set names of stepsDate
+names(stepsData) <-"steps"
 
+# make a histogram of the total number of steps taken each day
+qplot( steps,data = stepsData)
+```
 
+2. Calculate and report the mean and median total number of steps taken per day
+```{r echo = TRUE}
+# summary the steps
+summaryData <- lapply(splitData, summary)
+
+# print summary
+print(summaryData)
+```
 
 ## What is the average daily activity pattern?
+1. Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+```{r echo = TRUE}
+# average steps per day
+avgData <- lapply(splitData, ave)
 
+# get names 
+namesData <- names(avgData)
 
+# get average sum of steps
+rData <- 0
+nameS <- ""
+for (i in 1 : length(namesData)){
+    unaV <- unlist(avgData[namesData[i]])
+    rData[i]<- unaV[1]
+    }
 
+# tranform to frame
+stepsData <- data.frame( rData)#data.frame(rData)
+stepsData["dates"]<-namesData
+# set names of stepsDate
+names(stepsData) <-c("steps", "dates")
+
+# make a plot of the average number of steps taken each day
+stepsData <- stepsData[!is.na(stepsData[1]),]
+plot(1:length(stepsData$dates),stepsData$steps,type = "l")
+
+```
+
+2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r echo = TRUE}
+print(max(rData[!is.na(rData)]))
+print(namesData[!is.na(rData) & rData == max(rData[!is.na(rData)])])
+```
 ## Imputing missing values
+1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+```{r echo = TRUE}
+naRowsNum = sum(is.na(activityData[,1]))
 
+countAllPartNaDay <-0
+# check if all intervals per day are NA
+for (i in 1 : length(namesData)){  
+    # get number of intervals which value is NA per day
+    naValueNum<- sum(is.na(activityData[,1]) & activityData[,2]==namesData[i])
+    # get number of intervals which value is not NA per day
+    notNaValueNum<- sum(!is.na(activityData[,1]) & activityData[,2]==namesData[i])
+    
+    # List all intervals per day are NA")
+    if (naValueNum > 0  & notNaValueNum >0){    
+        print(namesData[i])
+        print(naValueNum)
+        print(notNaValueNum)
+        countAllPartNaDay <- countAllPartNaDay + 1
+    }
+    
+  }
 
+```
+The total number of missing values in the dataset is `r naRowsNum`. But check each day intervals that intervals is all NA of the day. The number of days, their part of invtervals are NA s and part are not NA s,
+is `r countAllPartNaDay`. It means if intervals of one day have some NA s, the all intervals are NA s.
+
+2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+```{r echo = TRUE}
+# get mean of all steps 
+stepsMean <- mean(stepsData[,1])
+```
+
+3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+```{r echo = TRUE}
+activityDataNew <- activityData
+# set stepsMean to steps of intervals which steps is NA 
+activityDataNew$steps[is.na(activityDataNew$steps)] <- stepsMean
+```
+
+4. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+```{r echo = TRUE}
+
+# split data by date
+splitData <- split(activityDataNew[,1], activityDataNew$date)
+
+# sum the steps
+sumData <- lapply(splitData, sum)
+
+# tranform to frame
+ssData <- data.frame(sumData)
+
+# get the sum of steps
+rData <- 0
+for (i in 1 : length(ssData)){
+    rData[i]<- ssData[i][,1][1]
+}
+
+# tranform to frame
+stepsDataN <- data.frame(rData)
+
+# set names of stepsDate
+names(stepsDataN) <-"steps"
+
+# make a histogram of the total number of steps taken each day
+qplot( steps,data = stepsDataN)
+
+# summary the steps
+summaryData <- lapply(splitData, summary)
+
+# print summary
+print(summaryData)
+```
+
+Because we use mean steps for missing data, so we can see the count of mean steps increase as the histogram shown. I think it's a Normal Distribution.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+1. Create a new factor variable in the dataset with two levels -- "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+```{r echo = TRUE}
+# initial
+weekdaysList <- ""
+
+# get weekdays
+Sys.setlocale("LC_TIME","en_US")
+weekdaysData<- weekdays(as.Date(stepsData$dates, "%Y-%m-%d"))
+
+# get weekend or weekday
+for (i in seq_along(weekdaysData)){
+    w <- weekdaysData[i]
+    if (w == "Sunday" | w == "Saterday")
+    {
+        weekdaysList[i] <- "weekend"  
+    }else{
+        weekdaysList[i] <- "weekday" 
+    }
+
+}
+# Create a new factor variable
+weekdaysFactor <- factor(weekdaysList) 
+# Add to dataset
+stepsData$weekdays <-weekdaysFactor
+```
+2. Make a panel plot containing a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). 
+```{r echo = TRUE}
+library(lattice)
+stepsData2 <- transform( stepsData, dateN = 1: length(dates))
+xyplot(steps ~ dateN |weekdays , data = stepsData2, layout =c(1,2), type = "l")
+```
+
